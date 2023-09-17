@@ -1,0 +1,53 @@
+import numpy as np
+
+# Sample user-item ratings matrix (rows represent users, columns represent items)
+# You should replace this with your actual user-item data
+user_item_ratings = np.array([
+    [5, 4, 0, 0, 1, 0],
+    [0, 5, 4, 0, 0, 2],
+    [0, 0, 0, 3, 4, 5],
+    [4, 0, 0, 2, 0, 4],
+    [0, 0, 5, 4, 0, 0]
+])
+
+# Function to calculate similarity between two users (using cosine similarity)
+def calculate_similarity(user1, user2):
+    nonzero_indices = np.logical_and(user1 != 0, user2 != 0)
+    if np.sum(nonzero_indices) == 0:
+        return 0  # No common ratings, similarity is 0
+    else:
+        dot_product = np.dot(user1[nonzero_indices], user2[nonzero_indices])
+        magnitude_user1 = np.linalg.norm(user1[nonzero_indices])
+        magnitude_user2 = np.linalg.norm(user2[nonzero_indices])
+        similarity = dot_product / (magnitude_user1 * magnitude_user2)
+        return similarity
+
+# Function to recommend items to a user based on collaborative filtering
+def recommend_items(user_id, user_item_matrix, num_recommendations=3):
+    user_ratings = user_item_matrix[user_id]
+    similar_users = []
+    
+    # Calculate similarity between the user and all other users
+    for other_user_id in range(len(user_item_matrix)):
+        if other_user_id != user_id:
+            similarity = calculate_similarity(user_ratings, user_item_matrix[other_user_id])
+            similar_users.append((other_user_id, similarity))
+    
+    # Sort similar users by descending similarity score
+    similar_users.sort(key=lambda x: x[1], reverse=True)
+    
+    # Recommend items rated highly by similar users that the user hasn't rated yet
+    recommendations = []
+    for other_user_id, similarity in similar_users:
+        for item_id, rating in enumerate(user_item_matrix[other_user_id]):
+            if rating > 3 and user_ratings[item_id] == 0:
+                recommendations.append(item_id)
+                if len(recommendations) >= num_recommendations:
+                    return recommendations
+    
+    return recommendations
+
+# Example: Recommend movies to user 0
+user_id = 0
+recommended_items = recommend_items(user_id, user_item_ratings)
+print(f"Recommended items for User {user_id}: {recommended_items}")
