@@ -1,0 +1,92 @@
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout, Add
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import Adam
+
+# Load a pre-trained image recognition model (VGG16 in this case)
+base_model = VGG16(weights='imagenet')
+image_model = Model(inputs=base_model.input, outputs=base_model.layers[-2].output)
+
+# Load and preprocess an image (you need to provide an image file)
+def preprocess_image(image_path):
+    img = tf.keras.preprocessing.image.load_img(image_path, target_size=(224, 224))
+    img = tf.keras.preprocessing.image.img_to_array(img)
+    img = np.expand_dims(img, axis=0)
+    img = tf.keras.applications.vgg16.preprocess_input(img)
+    return img
+
+# Extract image features using the pre-trained model
+def extract_image_features(image_path):
+    img = preprocess_image(image_path)
+    features = image_model.predict(img)
+    return features
+
+# Load and preprocess a dataset of image-caption pairs (you need to provide the dataset)
+# Here, we assume you have a list of image file paths and corresponding captions
+image_file_paths = ["image1.jpg", "image2.jpg", ...]
+captions = ["A cat on a mat", "A dog in a park", ...]
+
+# Tokenize captions and create a word-to-index mapping
+tokenizer = Tokenizer(num_words=5000, oov_token="<OOV>")
+tokenizer.fit_on_texts(captions)
+vocab_size = len(tokenizer.word_index) + 1
+
+# Create sequences of input data (image features and caption sequences)
+input_images, input_captions, target_captions = [], [], []
+max_seq_length = max([len(caption.split()) for caption in captions])
+
+for i, image_path in enumerate(image_file_paths):
+    features = extract_image_features(image_path)
+    for caption in captions[i].split():
+        seq = tokenizer.texts_to_sequences([caption])[0]
+        for j in range(1, len(seq)):
+            in_seq, out_seq = seq[:j], seq[j]
+            in_seq = pad_sequences([in_seq], maxlen=max_seq_length, padding='post')[0]
+            out_seq = tf.keras.utils.to_categorical([out_seq], num_classes=vocab_size)[0]
+            input_images.append(features)
+            input_captions.append(in_seq)
+            target_captions.append(out_seq)
+
+input_images = np.array(input_images)
+input_captions = np.array(input_captions)
+target_captions = np.array(target_captions)
+
+# Define the captioning model (a simple LSTM-based model in this example)
+image_input = tf.keras.layers.Input(shape=(4096,))
+image_features = Dense(256, activation='relu')(image_input)
+image_features = Dropout(0.5)(image_features)
+
+caption_input = tf.keras.layers.Input(shape=(max_seq_length,))
+caption_embedding = Embedding(input_dim=vocab_size, output_dim=256)(caption_input)
+caption_lstm = LSTM(256)(caption_embedding)
+
+decoder_input = Add()([image_features, caption_lstm])
+output = Dense(vocab_size, activation='softmax')(decoder_input)
+
+captioning_model = Model(inputs=[image_input, caption_input], outputs=output)
+
+# Compile the model
+captioning_model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001))
+
+# Train the captioning model (you need to provide training data)
+# Here, you would typically use a larger dataset and train for many epochs
+captioning_model.fit([input_images, input_captions], target_captions, epochs=10, batch_size=32)
+
+# To generate captions for a new image, you would extract features and use the trained model
+new_image_path = "new_image.jpg"
+new_features = extract_image_features(new_image_path)
+start_token = tokenizer.texts_to_sequences(["<start>"])[0]
+
+for _ in range(max_seq_length):
+    sequence = pad_sequences([start_token], maxlen=max_seq_length, padding='post')
+    predicted_word_index = np.argmax(captioning_model.predict([new_features, sequence]), axis=-1)[0]
+    predicted_word = [word for word, index in tokenizer.word_index.items() if index == predicted_word_index][0]
+    if predicted_word == "<end>":
+        break
+    print(predicted_word, end=" ")
+
+# Don't forget to save and load your trained model for future use
