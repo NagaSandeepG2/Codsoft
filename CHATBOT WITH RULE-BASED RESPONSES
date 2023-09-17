@@ -1,0 +1,35 @@
+def chatbot_response(user_input):
+    user_input = user_input.lower()
+
+    if "hello" in user_input or "hi" in user_input:
+        return "Hello! How can I assist you today?"
+
+    elif "how are you" in user_input:
+        return "I'm just a computer program, but thanks for asking. How can I help you?"
+
+    elif "what is your name" in user_input:
+        return "I'm a chatbot. You can call me ChatGPT."
+
+    elif "bye" in user_input or "goodbye" in user_input:
+        return "Goodbye! Have a great day!"
+
+    elif "help" in user_input:
+        return "I'm here to provide information and answer your questions. Feel free to ask anything."
+
+    elif "weather" in user_input:
+        return "I'm sorry, I don't have access to real-time weather information. You can check a weather website or app for that."
+
+    elif "age" in user_input:
+        return "I don't have an age. I'm just a computer program."
+
+    else:
+        return "I'm not sure how to respond to that. Please ask me something else."
+
+# Main loop for the chatbot
+while True:
+    user_input = input("You: ")
+    if user_input.lower() == "exit":
+        print("Chatbot: Goodbye!")
+        break
+    response = chatbot_response(user_input)
+    print("Chatbot:", response)
